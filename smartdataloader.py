@@ -7,7 +7,7 @@ from torch import Tensor
 from vocabulary import Vocabulary
 
 
-class SmartDataLoader():
+class SmartDataLoader:
 
     def __init__(self, input_vocab:Vocabulary, output_vocab:Vocabulary, batch_size:int=1, random_seed:int = 0):
         """Create a Dataloader that outputs input and output document with sequence length being maximum length of sentence for that batch.
