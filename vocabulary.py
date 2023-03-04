@@ -34,6 +34,8 @@ class Vocabulary:
         if remove_stopwords:
             assert language in [*stopwords.fileids(), None], f"`language` should be in {stopwords.fileids()} or None"
 
+        self.doc_list = doc_list
+        self.docs_tokens = None
         self.language = language
         self.min_occurence = min_occurence
         self.tokenization_method = tokenization_method
@@ -57,6 +59,8 @@ class Vocabulary:
         self.i2t = {}
 
         self.vocab = self._build_vocab(doc_list)
+
+        self.docs_tokens_encoded = self._generate_docs_tokens_encoded()
 
 
     @staticmethod
@@ -154,6 +158,7 @@ class Vocabulary:
 
         # Clean and tokenize all docs
         docs_tokens = self._preprocess(doc_list)
+        self.docs_tokens = docs_tokens
         
         # To store all tokens
         all_tokens = []
@@ -181,3 +186,22 @@ class Vocabulary:
         # Return vocabulary
         return self.special_tokens + unique_tokens
 
+    def _generate_docs_tokens_encoded(self) -> List[List[str]]:
+        """Converts doc list to its token index
+
+        Returns:
+            List[List[int]]: Each document with its token encoded
+        """
+        docs_tokens_encoded = []
+
+        for doc in self.docs_tokens:
+            new_doc = [self.t2i[token] for token in doc]
+
+            # Add <sos> and <eos> token
+            new_doc.insert(0, self.SOS_TOKEN)
+            new_doc.append(self.EOS_TOKEN)
+            
+            docs_tokens_encoded.append(new_doc)
+
+
+        return docs_tokens_encoded
