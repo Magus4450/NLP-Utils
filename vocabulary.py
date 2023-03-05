@@ -34,7 +34,7 @@ class Vocabulary:
         if remove_stopwords:
             assert language in [*stopwords.fileids(), None], f"`language` should be in {stopwords.fileids()} or None"
 
-        self.doc_list = doc_list
+        self.doc_list = [doc.lower() for doc in doc_list]
         self.docs_tokens = None
         self.language = language
         self.min_occurence = min_occurence
@@ -144,6 +144,11 @@ class Vocabulary:
         if self.remove_stopwords:
             docs_tokens = [self._remove_stopwords(doc_tokens) for doc_tokens in docs_tokens]
 
+        # Lower
+        for i, doc_tokens in enumerate(docs_tokens):
+            new_tokens = [tok.lower() for tok in doc_tokens]
+            docs_tokens[i] = new_tokens
+
         return docs_tokens
 
     def _build_vocab(self, doc_list: List[str]) -> List:
@@ -165,7 +170,11 @@ class Vocabulary:
 
         # Store all tokens in one list
         for doc_tokens in docs_tokens:
-            all_tokens += doc_tokens
+
+            # Change all tokens to lowercase
+            lowerered_tokens = [tok.lower() for tok in doc_tokens]
+
+            all_tokens += lowerered_tokens
         
         # Get count of each token
         token_count = Counter(all_tokens)
@@ -205,3 +214,22 @@ class Vocabulary:
 
 
         return docs_tokens_encoded
+
+    def convert_token_to_doc(self, doc_tokens):
+        doc = [self.i2t[idx] for idx in doc_tokens]
+        return doc
+    
+    def convert_doc_to_token(self, doc):
+        tokens_out = []    
+        for token in doc:
+            token = token.lower()
+            if token in self.vocab:
+                tokens_out.append(self.t2i[token])
+            else:
+                tokens_out.append(self.UNK_TOKEN)
+        
+        tokens_out.insert(0, self.SOS_TOKEN)
+        tokens_out.append(self.EOS_TOKEN)
+        return tokens_out
+
+        
