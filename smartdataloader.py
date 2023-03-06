@@ -1,26 +1,35 @@
+from copy import deepcopy
 from typing import List, Tuple
 
 import numpy as np
 import torch
 from torch import Tensor
-
-from .vocabulary import Vocabulary
+from vocabulary import Vocabulary
 
 
 class SmartDataLoader:
 
-    def __init__(self, input_vocab:Vocabulary, output_vocab:Vocabulary, batch_size:int=1, random_seed:int = 0):
+    def __init__(self, input_vocab:Vocabulary, output_vocab:Vocabulary, batch_size:int=1, input_docs_tokens_encoded:List[List[int]]=None, output_docs_tokens_encoded:List[List[int]]=None,random_seed:int = 0):
         """Create a Dataloader that outputs input and output document with sequence length being maximum length of sentence for that batch.
 
         Args:
             input_vocab (Vocabulary): Input Data Vocabulary
             output_vocab (Vocabulary): Output Data Vocabulary
             batch_size (int, optional): Batch Size. Defaults to 1.
+            input_docs_tokens_encoded (List[List[int]], optional): List of input encoded documents to use in dataloader. Defaults to None.
+            output_docs_tokens_encoded (List[List[int]], optional): List of input encoded documents to use in dataloader. Defaults to None.
             random_seed (int, optional): Random Seed for shuffling. Defaults to 0.
         """
-        self.input_vocab = input_vocab
-        self.output_vocab = output_vocab
+        self.input_vocab = deepcopy(input_vocab)
+        self.output_vocab = deepcopy(output_vocab)
         self.batch_size = batch_size
+        self.input_docs_tokens_encoded = input_docs_tokens_encoded
+        self.output_docs_tokens_encoded = output_docs_tokens_encoded
+        if input_docs_tokens_encoded is not None and output_docs_tokens_encoded is not None:
+            self.input_vocab.docs_tokens_encoded = input_docs_tokens_encoded
+            self.output_vocab.docs_tokens_encoded = output_docs_tokens_encoded
+
+
         self.random_seed = random_seed
         self.n_sentences = len(input_vocab.doc_list)
         self._shuffle_vocab_data()
@@ -32,24 +41,16 @@ class SmartDataLoader:
         """
 
         # Group input and output data for same shuffling
-        joined_doc_list = list(zip(self.input_vocab.doc_list, self.output_vocab.doc_list))
-        joined_docs_tokens = list(zip(self.input_vocab.docs_tokens, self.output_vocab.docs_tokens))
         joined_docs_tokens_encoded = list(zip(self.input_vocab.docs_tokens_encoded, self.output_vocab.docs_tokens_encoded))
-
-        # Group all data to be shuffled
-        all_data = list(zip(joined_doc_list, joined_docs_tokens, joined_docs_tokens_encoded))
 
         np.random.seed(self.random_seed)
 
         # Shuffle 
-        np.random.shuffle(all_data)
+        np.random.shuffle(joined_docs_tokens_encoded)
 
         # Reassign shuffled data
-        joined_doc_list, joined_docs_tokens, joined_docs_tokens_encoded = zip(*all_data)
-
-        self.input_vocab.doc_list, self.output_vocab.doc_list = zip(*joined_doc_list)
-        self.input_vocab.docs_tokens, self.output_vocab.docs_tokens = zip(*joined_docs_tokens)
         self.input_vocab.docs_tokens_encoded, self.output_vocab.docs_tokens_encoded = zip(*joined_docs_tokens_encoded)
+
 
     
     def _build_tensor(self, doc_pairs: List[List[int]]) -> Tuple[Tensor, Tensor]:
