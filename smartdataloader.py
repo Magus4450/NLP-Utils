@@ -31,7 +31,7 @@ class SmartDataLoader:
 
 
         self.random_seed = random_seed
-        self.n_sentences = len(input_vocab.doc_list)
+        self.n_sentences = len(input_vocab.docs_tokens_encoded)
         self._shuffle_vocab_data()
 
         self.PAD_TOKEN = input_vocab.PAD_TOKEN
