@@ -4,34 +4,39 @@ from typing import List, Tuple
 import numpy as np
 import torch
 from torch import Tensor
-from vocabulary import Vocabulary
+
+from .vocabulary import Vocabulary
 
 
 class SmartDataLoader:
 
-    def __init__(self, input_vocab:Vocabulary, output_vocab:Vocabulary, batch_size:int=1, input_docs_tokens_encoded:List[List[int]]=None, output_docs_tokens_encoded:List[List[int]]=None,random_seed:int = 0):
+    def __init__(self, input_vocab:Vocabulary, output_vocab:Vocabulary, batch_size:int=1, max_input_length:int = 100, max_output_length:int = 100, input_docs_tokens_encoded:List[List[int]]=None, output_docs_tokens_encoded:List[List[int]]=None, dynamic_batch:bool = False, random_seed:int = 0):
         """Create a Dataloader that outputs input and output document with sequence length being maximum length of sentence for that batch.
 
         Args:
             input_vocab (Vocabulary): Input Data Vocabulary
             output_vocab (Vocabulary): Output Data Vocabulary
             batch_size (int, optional): Batch Size. Defaults to 1.
+            max_input_length (int, optional): Input Token length. Defaults to 100.
+            max_output_length (int, optional): Output Token length. Defaults to 100.
             input_docs_tokens_encoded (List[List[int]], optional): List of input encoded documents to use in dataloader. Defaults to None.
             output_docs_tokens_encoded (List[List[int]], optional): List of input encoded documents to use in dataloader. Defaults to None.
+            dynamic_batch (bool, optional): Whether to use dynamic batch size. Defaults to False.
             random_seed (int, optional): Random Seed for shuffling. Defaults to 0.
         """
         self.input_vocab = deepcopy(input_vocab)
         self.output_vocab = deepcopy(output_vocab)
         self.batch_size = batch_size
+        self.max_input_length = max_input_length
+        self.max_output_length = max_output_length
         self.input_docs_tokens_encoded = input_docs_tokens_encoded
         self.output_docs_tokens_encoded = output_docs_tokens_encoded
         if input_docs_tokens_encoded is not None and output_docs_tokens_encoded is not None:
             self.input_vocab.docs_tokens_encoded = input_docs_tokens_encoded
             self.output_vocab.docs_tokens_encoded = output_docs_tokens_encoded
 
-
+        self.dynamic_batch = dynamic_batch
         self.random_seed = random_seed
-        self.n_sentences = len(input_vocab.docs_tokens_encoded)
         self._shuffle_vocab_data()
 
         self.PAD_TOKEN = input_vocab.PAD_TOKEN
@@ -63,19 +68,24 @@ class SmartDataLoader:
             Tuple[Tensor, Tensor]: Batched Tensors of input and output tokens
         """
 
-        input_max_len = 0
-        output_max_len = 0
-
         input_docs = []
         output_docs = []
 
-        # Get length of doc in input and output having highest number of tokens
-        for doc_pair in doc_pairs:
-            input_len = len(doc_pair[0])
-            output_len = len(doc_pair[1])
+        if self.dynamic_batch:
+            input_max_len = 0
+            output_max_len = 0
 
-            input_max_len = max(input_max_len,input_len)
-            output_max_len = max(output_max_len,output_len)
+
+            # Get length of doc in input and output having highest number of tokens
+            for doc_pair in doc_pairs:
+                input_len = len(doc_pair[0])
+                output_len = len(doc_pair[1])
+
+                input_max_len = max(input_max_len,input_len)
+                output_max_len = max(output_max_len,output_len)
+        else:
+            input_max_len = self.max_input_length
+            output_max_len = self.max_output_length
         
        
 
@@ -87,14 +97,14 @@ class SmartDataLoader:
             if input_len < input_max_len:
                 pads_needed = input_max_len - input_len
                 for _ in range(pads_needed):
-                    doc_pair[0].insert(-1, self.PAD_TOKEN)
+                    doc_pair[0].append(self.PAD_TOKEN)
                 doc_pairs[idx][0] = doc_pair[0]
 
             # Pad Output
             if output_len < output_max_len:
                 pads_needed = output_max_len - output_len
                 for _ in range(pads_needed):
-                    doc_pair[1].insert(-1, self.PAD_TOKEN)
+                    doc_pair[1].append(self.PAD_TOKEN)
                 doc_pairs[idx][1] = doc_pair[1]
 
             input_docs.append(doc_pairs[idx][0])
@@ -114,7 +124,7 @@ class SmartDataLoader:
         """
         batch = 0
         collected = []
-        for sent_idx in range(self.n_sentences):
+        for sent_idx in range(len(self.input_vocab.docs_tokens_encoded)):
             batch += 1
             collected.append([self.input_vocab.docs_tokens_encoded[sent_idx], self.output_vocab.docs_tokens_encoded[sent_idx]])
             
@@ -130,7 +140,7 @@ class SmartDataLoader:
         Returns:
             int: Number of iteration this dataloder runs for
         """
-        return self.n_sentences // self.batch_size
+        return len(self.input_vocab.docs_tokens_encoded) // self.batch_size
             
 
     

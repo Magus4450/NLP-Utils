@@ -42,12 +42,15 @@ class Vocabulary:
         self.remove_punctuations = remove_punctuations
         self.remove_digits = remove_digits
         self.remove_stopwords = remove_stopwords
+        self.tokenizer = None
 
 
         self.SOS_TOKEN = 0
         self.EOS_TOKEN = 1
         self.PAD_TOKEN = 2
         self.UNK_TOKEN = 3
+
+        self.max_length = 0
 
         self.special_tokens = ["<sos>", "<eos>", "<pad>", "<unk>"]
         self.t2i = {
@@ -133,12 +136,12 @@ class Vocabulary:
 
         # Setup tokenizer        
         if self.tokenization_method == 'word':
-            tokenizer = word_tokenize
+            self.tokenizer = word_tokenize
         elif self.tokenization_method == 'punctuation':
-            tokenizer = wordpunct_tokenize
+            self.tokenizer = wordpunct_tokenize
         
         # Tokenize
-        docs_tokens = [tokenizer(doc) for doc in doc_list]
+        docs_tokens = [self.tokenizer(doc) for doc in doc_list]
 
         # Remove stopwords
         if self.remove_stopwords:
@@ -210,13 +213,16 @@ class Vocabulary:
             new_doc.insert(0, self.SOS_TOKEN)
             new_doc.append(self.EOS_TOKEN)
             
+            self.max_length = max(self.max_length, len(new_doc))
             docs_tokens_encoded.append(new_doc)
 
 
         return docs_tokens_encoded
 
-    def convert_token_to_doc(self, doc_tokens):
+    def convert_token_to_doc(self, doc_tokens, remove_special = False):
         doc = [self.i2t[idx] for idx in doc_tokens]
+        if remove_special:
+            doc = [tok for tok in doc if tok not in self.special_tokens]
         return doc
     
     def convert_doc_to_token(self, doc):
@@ -228,8 +234,6 @@ class Vocabulary:
             else:
                 tokens_out.append(self.UNK_TOKEN)
         
-        tokens_out.insert(0, self.SOS_TOKEN)
-        tokens_out.append(self.EOS_TOKEN)
         return tokens_out
 
         
